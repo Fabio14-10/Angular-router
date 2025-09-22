@@ -2,6 +2,7 @@
   (load)="imgLoaded()"
   (error)="imgError()"
   [src]="img"
+  referrerpolicy="no-referrer"
   *ngIf="img; else elseImg"
 />
 <ng-template #elseImg>

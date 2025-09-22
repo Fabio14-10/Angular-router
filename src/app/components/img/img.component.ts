@@ -16,7 +16,7 @@ export class ImgComponent {
   }
   @Input() alt: string = '';
   @Output() loaded = new EventEmitter<string>();
-  imageDefault = './assets/images/default.png';
+  imageDefault = 'assets/images/default.png';
 
   imgError() {
     this.img = this.imageDefault;
