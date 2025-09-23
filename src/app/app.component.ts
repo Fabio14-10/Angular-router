@@ -1,5 +1,6 @@
-import { Component } from '@angular/core';
-
+import { Component, OnInit } from '@angular/core';
+import { TokenService } from './services/token.service';
+import { AuthService } from './services/auth.service';
 import { UsersService } from './services/users.service';
 import { FilesService } from './services/files.service';
 
@@ -8,19 +9,30 @@ import { FilesService } from './services/files.service';
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.scss']
 })
-export class AppComponent {
+export class AppComponent implements OnInit{
   imgRta = '';
 
   constructor(
     private usersService: UsersService,
-    private filesService: FilesService
+    private filesService: FilesService,
+    private authService: AuthService,
+    private tokenService: TokenService
   ) {}
+
+  ngOnInit() {
+    const token = this.tokenService.getToken()
+    if (token) {
+      this.authService.getProfile()
+      .subscribe()
+    }
+  }  
 
   createUser() {
     this.usersService.create({
       name: 'Sebas',
       email: 'sebas@mail.com',
-      password: '1212'
+      password: '1212',
+      role: 'customer'
     })
     .subscribe(rta => {
       console.log(rta);

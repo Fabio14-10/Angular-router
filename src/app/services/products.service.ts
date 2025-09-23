@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams, HttpErrorResponse, HttpStatusCode } from '@angular/common/http';
-import { retry, catchError, map } from 'rxjs/operators';
-import { throwError, zip } from 'rxjs';
+import { retry, catchError, map, tap } from 'rxjs/operators';
+import { throwError, zip, Observable } from 'rxjs';
 
 import { Product, CreateProductDTO, UpdateProductDTO } from './../models/product.model';
 import { checkTime } from './../interceptors/time.interceptor';
@@ -12,36 +12,41 @@ import { environment } from './../../environments/environment';
 })
 export class ProductsService {
 
-  private apiUrl = `${environment.API_URL}/api/products`;
+  // Cambié la base para evitar duplicar "/products" al concatenar más abajo.
+  private apiUrl = `${environment.API_URL}/api`;
 
   constructor(
     private http: HttpClient
   ) { }
 
-  getByCategory(categoryId: string, limit?: number, offset?: number) {
+  getByCategory(categoryId: string, limit?: number, offset?: number): Observable<Product[]> {
     let params = new HttpParams();
-    if (limit && offset) {
-      params = params.set('limit', limit);
-      params = params.set('offset', limit);
+    if (limit != null) {
+      params = params.set('limit', String(limit));
     }
-    return this.http.get<Product[]>(`${this.apiUrl}/categories/${categoryId}/products`,{ params })
+    if (offset != null) {
+      params = params.set('offset', String(offset));
+    }
+    // Endpoint: /api/categories/:id/products
+    return this.http.get<Product[]>(`${this.apiUrl}/categories/${categoryId}/products`, { params });
   }
 
-  getAll(limit?: number, offset?: number) {
+  getAll(limit?: number, offset?: number): Observable<Product[]> {
     let params = new HttpParams();
-    if (limit && offset) {
-      params = params.set('limit', limit);
-      params = params.set('offset', limit);
+    if (limit != null) {
+      params = params.set('limit', String(limit));
     }
-    return this.http.get<Product[]>(`${this.apiUrl}/products`,{ params, context: checkTime() })
+    if (offset != null) {
+      params = params.set('offset', String(offset));
+    }
+    return this.http.get<Product[]>(`${this.apiUrl}/products`, { params, context: checkTime() })
     .pipe(
       retry(3),
-      map(products => products.map(item => {
-        return {
-          ...item,
-          taxes: .19 * item.price
-        }
-      }))
+      // tap(data => console.log('getAll - productos recibidos:', data)), // <- descomenta para debug
+      map(products => products.map(item => ({
+        ...item,
+        taxes: 0.19 * item.price
+      })))
     );
   }
 
@@ -52,33 +57,34 @@ export class ProductsService {
     );
   }
 
-  getOne(id: string) {
+  getOne(id: string): Observable<Product> {
     return this.http.get<Product>(`${this.apiUrl}/products/${id}`)
     .pipe(
       catchError((error: HttpErrorResponse) => {
         if (error.status === HttpStatusCode.Conflict) {
-          return throwError('Algo esta fallando en el server');
+          return throwError(() => new Error('Algo esta fallando en el server'));
         }
         if (error.status === HttpStatusCode.NotFound) {
-          return throwError('El producto no existe');
+          return throwError(() => new Error('El producto no existe'));
         }
         if (error.status === HttpStatusCode.Unauthorized) {
-          return throwError('No estas permitido');
+          return throwError(() => new Error('No estas permitido'));
         }
-        return throwError('Ups algo salio mal');
+        return throwError(() => new Error('Ups algo salio mal'));
       })
-    )
+    );
   }
 
-  create(dto: CreateProductDTO) {
+  create(dto: CreateProductDTO): Observable<Product> {
     return this.http.post<Product>(`${this.apiUrl}/products`, dto);
   }
 
-  update(id: string, dto: UpdateProductDTO) {
+  update(id: string, dto: UpdateProductDTO): Observable<Product> {
     return this.http.put<Product>(`${this.apiUrl}/products/${id}`, dto);
   }
 
-  delete(id: string) {
+  delete(id: string): Observable<boolean> {
     return this.http.delete<boolean>(`${this.apiUrl}/products/${id}`);
   }
 }
+
